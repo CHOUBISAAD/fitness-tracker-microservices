@@ -1,0 +1,32 @@
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: selfsigned-issuer
+  namespace: fitness-tracker
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: fitness-tracker-tls
+  namespace: fitness-tracker
+spec:
+  secretName: fitness-tracker-tls
+  duration: 2160h # 90 days
+  renewBefore: 360h # 15 days
+  isCA: false
+  privateKey:
+    algorithm: RSA
+    encoding: PKCS1
+    size: 2048
+  usages:
+    - server auth
+    - client auth
+  dnsNames:
+    - "*.elb.amazonaws.com"
+    - "*.eu-west-1.elb.amazonaws.com"
+    - "fitness-tracker.local"
+  issuerRef:
+    name: selfsigned-issuer
+    kind: Issuer

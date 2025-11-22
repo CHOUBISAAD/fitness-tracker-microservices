@@ -1,0 +1,21 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "eks:DescribeCluster",
+        "eks:ListClusters"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "eks:AccessKubernetesApi",
+        "eks:DescribeCluster"
+      ],
+      "Resource": "arn:aws:eks:eu-west-1:925047941400:cluster/fitness-tracker-dev-eks"
+    }
+  ]
+}

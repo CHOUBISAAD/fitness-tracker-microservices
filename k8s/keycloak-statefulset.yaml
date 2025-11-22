@@ -1,0 +1,113 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak-service
+  namespace: fitness-tracker
+  labels:
+    app: keycloak
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: http
+  selector:
+    app: keycloak
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: keycloak
+  namespace: fitness-tracker
+spec:
+  serviceName: keycloak-service
+  replicas: 1
+  selector:
+    matchLabels:
+      app: keycloak
+  template:
+    metadata:
+      labels:
+        app: keycloak
+    spec:
+      containers:
+      - name: keycloak
+        image: quay.io/keycloak/keycloak:23.0
+        args: ["start"]        # ✅ Use production mode
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: KEYCLOAK_ADMIN
+          valueFrom:
+            secretKeyRef:
+              name: keycloak-credentials
+              key: admin-username
+        - name: KEYCLOAK_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: keycloak-credentials
+              key: admin-password
+        - name: KC_DB
+          value: "postgres"
+        - name: KC_DB_URL_HOST
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: rds-host
+        - name: KC_DB_URL_PORT
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: rds-port
+        - name: KC_DB_URL_DATABASE
+          value: "keycloakdb"
+        - name: KC_DB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: rds-username
+        - name: KC_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: rds-password
+        - name: KC_PROXY
+          value: "edge"
+        - name: KC_HOSTNAME_STRICT
+          value: "false"
+        - name: KC_HTTP_ENABLED
+          value: "true"
+        - name: JAVA_OPTS_APPEND
+          value: "-Xms256m -Xmx896m"
+
+        # ✅ Enable health endpoints explicitly (good practice)
+        - name: KC_HEALTH_ENABLED
+          value: "true"
+
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+
+        # ✅ Use correct health endpoints for Keycloak 23+
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 10
+
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: 8080
+          initialDelaySeconds: 90
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 5

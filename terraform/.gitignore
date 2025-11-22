@@ -1,0 +1,41 @@
+# Terraform State Files
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# Terraform Lock Files (keep this commented to track provider versions)
+# .terraform.lock.hcl
+
+# Terraform Directories
+.terraform/
+.terraform.lock.hcl
+
+# Crash Logs
+crash.log
+crash.*.log
+
+# Sensitive Files
+*.tfvars
+*.tfvars.json
+*.auto.tfvars
+*.auto.tfvars.json
+
+# Override Files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI Configuration Files
+.terraformrc
+terraform.rc
+
+# Editor Backup Files
+*~
+*.swp
+*.swo
+.DS_Store
+
+# Plan Output
+*.tfplan
+plan.out

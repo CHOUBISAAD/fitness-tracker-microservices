@@ -1,0 +1,104 @@
+name: Config Repository Update
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'config-repo/**'
+  workflow_dispatch:
+
+env:
+  AWS_REGION: eu-west-1
+  EKS_CLUSTER_NAME: fitness-tracker-dev-eks
+  NAMESPACE: fitness-tracker
+
+jobs:
+  restart-services:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 2
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Update kubeconfig
+      run: |
+        aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
+
+    - name: Restart Config Server
+      run: |
+        echo "Restarting config-server to pick up new configuration..."
+        kubectl rollout restart deployment/config-server -n ${{ env.NAMESPACE }}
+        kubectl rollout status deployment/config-server -n ${{ env.NAMESPACE }} --timeout=3m
+
+    - name: Wait for Config Server
+      run: |
+        echo "Waiting for config-server to be ready..."
+        sleep 30
+
+    - name: Determine changed services
+      id: changes
+      run: |
+        echo "Checking which config files changed..."
+        CHANGED_FILES=$(git diff --name-only HEAD^ HEAD config-repo/)
+        echo "Changed files: $CHANGED_FILES"
+        
+        SERVICES_TO_RESTART=""
+        
+        if echo "$CHANGED_FILES" | grep -q "user-service.yml"; then
+          SERVICES_TO_RESTART="$SERVICES_TO_RESTART user-service"
+        fi
+        
+        if echo "$CHANGED_FILES" | grep -q "activity-service.yml"; then
+          SERVICES_TO_RESTART="$SERVICES_TO_RESTART activity-service"
+        fi
+        
+        if echo "$CHANGED_FILES" | grep -q "ai-service.yml"; then
+          SERVICES_TO_RESTART="$SERVICES_TO_RESTART ai-service"
+        fi
+        
+        if echo "$CHANGED_FILES" | grep -q "api-gateway.yml"; then
+          SERVICES_TO_RESTART="$SERVICES_TO_RESTART api-gateway"
+        fi
+        
+        echo "services=$SERVICES_TO_RESTART" >> $GITHUB_OUTPUT
+        echo "Services to restart: $SERVICES_TO_RESTART"
+
+    - name: Restart affected services
+      if: steps.changes.outputs.services != ''
+      run: |
+        SERVICES="${{ steps.changes.outputs.services }}"
+        
+        for service in $SERVICES; do
+          echo "Restarting $service..."
+          kubectl rollout restart deployment/$service -n ${{ env.NAMESPACE }}
+        done
+        
+        for service in $SERVICES; do
+          echo "Waiting for $service to be ready..."
+          kubectl rollout status deployment/$service -n ${{ env.NAMESPACE }} --timeout=3m
+        done
+
+    - name: Verify deployments
+      run: |
+        echo "Current pod status:"
+        kubectl get pods -n ${{ env.NAMESPACE }}
+        
+        echo ""
+        echo "Service endpoints:"
+        kubectl get svc -n ${{ env.NAMESPACE }}
+
+    - name: Configuration update summary
+      run: |
+        echo "✅ Configuration update completed successfully!"
+        echo ""
+        echo "Restarted services:"
+        echo "${{ steps.changes.outputs.services }}"

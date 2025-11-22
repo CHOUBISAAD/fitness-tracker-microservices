@@ -1,0 +1,10 @@
+package org.choubi.aiservice.model;
+
+public enum ActivityType {
+    RUNNING,
+    CYCLING,
+    SWIMMING,
+    WALKING,
+    YOGA,
+    STRENGTH_TRAINING
+}

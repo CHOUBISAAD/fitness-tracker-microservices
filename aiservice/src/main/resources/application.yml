@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: ai-service
+  config:
+    import: optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://config-server-service:8888}
+
+# Updated to match @Value("${gemini.api.url}") and @Value("${gemini.api.key}")
+# Use environment variables if provided; otherwise you can hardcode for local tests.
+gemini:
+  api:
+    url: ${GEMINI_API_URL}
+    key: ${GEMINI_API_KEY}
